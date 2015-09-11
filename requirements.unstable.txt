@@ -1,0 +1,8 @@
+click
+django
+livereload
+lesscpy
+mistune
+pillow
+pyyaml
+sorl-thumbnail
