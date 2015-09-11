@@ -6,9 +6,12 @@ It's true, there are a million static site generators out there.  The best five 
 
 Ink handles your pages, blog posts, and scheduled social posts and just makes everything work. Simply.
 
+**Notes::** I'm using this in production, but it's still pretty tuned to my needs, and needs some abstraction.  Also, the social stuff isn't in yet.  If you need something today, use Cactus.
+
+
 # Installation
 
-1. `pip install ink`
+1. `pip install inky`  (note not "ink" - tragically, it was taken by a utility that appears to be abandoned.)
 2. `npm install -g firebase-tools`  Optional, to use the [firebase deploy]()
 3. `pip install picopt; brew install optipng jpeg gifsicle mozjpeg; ln -s /usr/local/Cellar/mozjpeg/2.1/bin/jpegtran /usr/local/bin/mozjpeg` Optional, to use image optimization (Mac OS X shown.)
 
