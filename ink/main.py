@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 import click
 import datetime
@@ -51,10 +51,10 @@ if os.path.exists(os.path.join(ROOT_DIR, "site.yml")):
     with open(os.path.join(ROOT_DIR, "site.yml")) as f:
         CONFIG = load(f)
 
-if "url" not in CONFIG:
-    raise AttributeError("Missing url in site")
-
-SITE_DIR_URL = CONFIG["url"].split("://")[1]
+if CONFIG:
+    if  "url" not in CONFIG:
+        raise AttributeError("Missing url in site")
+    SITE_DIR_URL = CONFIG["url"].split("://")[1]
 
 # from sys import path
 
@@ -97,7 +97,7 @@ def generate_thumbs_and_resize(dirpath, filename, out_filename):
         if "width" in CONFIG["images"]["thumbs"]:
             for width in CONFIG["images"]["thumbs"]["width"]:
                 thumb_out = renamed_out % ("%sw" % width)
-                print thumb_out
+                print(thumb_out)
                 im = original_image.copy()
                 size = width, orig_height * (float(width) / orig_width)
                 im.thumbnail(size, Image.ANTIALIAS)
@@ -106,7 +106,7 @@ def generate_thumbs_and_resize(dirpath, filename, out_filename):
         if "height" in CONFIG["images"]["thumbs"]:
             for height in CONFIG["images"]["thumbs"]["height"]:
                 thumb_out = renamed_out % ("%sh" % height)
-                print thumb_out
+                print(thumb_out)
                 im = original_image.copy()
                 size = orig_width * (float(height) / orig_height), height
                 im.thumbnail(size, Image.ANTIALIAS)
@@ -116,10 +116,10 @@ def generate_thumbs_and_resize(dirpath, filename, out_filename):
         if "max" in CONFIG["images"]:
             if "width" in CONFIG["images"]["max"]:
                 width = CONFIG["images"]["max"]["width"]
-                print "Resizing to %s" % width
+                print("Resizing to %s" % width)
                 if orig_width > width:
                     size = width, orig_height * (float(width) / orig_width)
-                    print size
+                    print(size)
                     im = original_image.copy()
                     im.thumbnail(size, Image.ANTIALIAS)
                     im.save(out_filename, im.format, quality=100)
@@ -159,7 +159,7 @@ def scaffold_piece(title, url):
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
 
-    with open(os.path.join(out_folder, "meta.yml"), "w+") as f:
+    with open(os.path.join(out_folder, "meta.yml"), "wb") as f:
         f.write("""url: test
 title: %(title)s
 description: All about %(title)s
@@ -172,7 +172,7 @@ updated_date: %(date)s
                 "date": now.strftime("%Y-%m-%d %H:%M"),
                 })
 
-    with open(os.path.join(out_folder, "social.yml"), "w+") as f:
+    with open(os.path.join(out_folder, "social.yml"), "wb") as f:
         f.write("""url: test
 start_date: %(date)s
 posts:
@@ -202,7 +202,7 @@ posts:
                 "date": now.strftime("%Y-%m-%d"),
                 })
 
-    with open(os.path.join(out_folder, "piece.md"), "w+") as f:
+    with open(os.path.join(out_folder, "piece.md"), "wb") as f:
         f.write("# %s\n\n" % title)
 
 
@@ -229,7 +229,7 @@ def build_site(dev=False, clean=False):
 
     # Build pages
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "pages"), topdown=False):
-        print dirpath, dirnames, filenames
+        print(dirpath, dirnames, filenames)
         for filename in filenames:
             if filename.endswith(".html"):
                 with open(os.path.join(dirpath, filename)) as source:
@@ -254,14 +254,14 @@ def build_site(dev=False, clean=False):
                     if not os.path.exists(os.path.dirname(out_filename)):
                         os.makedirs(os.path.dirname(out_filename))
 
-                    with open(out_filename, "w+") as dest:
+                    with open(out_filename, "wb") as dest:
                         dest.write(out)
-                        print "Writing %s" % filename
+                        print("Writing %s" % filename)
 
                     site_info["pages"].append(context_dict)
                     pages.append(filename)
 
-    print "Copying static files",
+    print("Copying static files",)
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "static"), topdown=False):
         for filename in filenames:
             if filename not in IGNORE_FILES:
@@ -272,7 +272,7 @@ def build_site(dev=False, clean=False):
                     filename
                 )
 
-                # print out_filename
+                # print(out_filename)
                 if not os.path.exists(os.path.dirname(out_filename)):
                     os.makedirs(os.path.dirname(out_filename))
 
@@ -295,22 +295,22 @@ def build_site(dev=False, clean=False):
                         out_filename
                     )
 
-            # print "Copying %s" % out_filename
-            print ".",
+            # print("Copying %s" % out_filename)
+            print(".",)
 
-    print "Copying extra files",
+    print("Copying extra files",)
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "extra"), topdown=False):
         for filename in filenames:
             if filename not in IGNORE_FILES:
-                print dirpath
-                print dirpath.replace("%s/extra/" % ROOT_DIR, ""),
+                print(dirpath)
+                print(dirpath.replace("%s/extra/" % ROOT_DIR, ""),)
                 out_filename = os.path.join(
                     ROOT_DIR,
                     BUILD_DIR,
                     # dirpath.replace("%s/extra/" % ROOT_DIR, ""),
                     filename
                 )
-                print out_filename
+                print(out_filename)
 
                 if not os.path.exists(os.path.dirname(out_filename)):
                     os.makedirs(os.path.dirname(out_filename))
@@ -319,9 +319,9 @@ def build_site(dev=False, clean=False):
                     os.path.join(dirpath, filename),
                     out_filename
                 )
-            print "Copying %s" % filename
+            print("Copying %s" % filename)
 
-    print ""
+    print("")
     call(["lesscpy", os.path.join(ROOT_DIR, BUILD_DIR, "less"), "-X", "-o", os.path.join(ROOT_DIR, BUILD_DIR, "css")])
 
     # Build posts
@@ -333,23 +333,23 @@ def build_site(dev=False, clean=False):
                 # Make sure it's got the stuffs.
 
                 if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")):
-                    print ("Missing meta.yml")
+                    print(("Missing meta.yml"))
                     break
                 else:
                     with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")) as f:
                         meta_config = load(f)
                 if "published" in meta_config and meta_config["published"] is not True:
-                    print "Not published"
+                    print("Not published")
                 else:
                     if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")):
-                        print ("Missing social.yml")
+                        print(("Missing social.yml"))
                         break
                     else:
                         with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")) as f:
                             social_config = load(f)
 
                     if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "header.jpg")):
-                        print ("Missing header.jpg")
+                        print(("Missing header.jpg"))
                         break
 
                     with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, filename)) as source:
@@ -390,13 +390,13 @@ def build_site(dev=False, clean=False):
                             if "width" in CONFIG["images"]["thumbs"]:
                                 for width in CONFIG["images"]["thumbs"]["width"]:
                                     thumb_out = renamed_out % ("%sw" % width)
-                                    print thumb_out
+                                    print(thumb_out)
                                     thumbs["%sw" % width] = thumb_out.replace(resources_url, "")
 
                             if "height" in CONFIG["images"]["thumbs"]:
                                 for height in CONFIG["images"]["thumbs"]["height"]:
                                     thumb_out = renamed_out % ("%sh" % height)
-                                    print thumb_out
+                                    print(thumb_out)
                                     thumbs["%sh" % height] = thumb_out.replace(resources_url, "")
 
                             context_dict = CONFIG["context"].copy()
@@ -438,7 +438,7 @@ def build_site(dev=False, clean=False):
                                 os.makedirs(os.path.dirname(out_filename))
 
                             out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", meta_config["url"])
-                            print out_folder
+                            print(out_folder)
                             if not os.path.exists(out_folder):
                                 os.makedirs(out_folder)
 
@@ -454,9 +454,9 @@ def build_site(dev=False, clean=False):
                                 social_outfilename
                             )
 
-                            with open(out_filename, "w+") as dest:
+                            with open(out_filename, "wb") as dest:
                                 dest.write(out)
-                                print "Writing %s" % filename
+                                print("Writing %s" % filename)
 
                             if dev:
                                 out_filename = "%s-social" % out_filename
@@ -485,23 +485,25 @@ def build_site(dev=False, clean=False):
                                 if not os.path.exists(os.path.dirname(out_filename)):
                                     os.makedirs(os.path.dirname(out_filename))
 
-                                with open(out_filename, "w+") as dest:
+                                with open(out_filename, "wb") as dest:
                                     dest.write(out)
-                                    print "Writing %s-social" % filename
+                                    print("Writing %s-social" % filename)
 
                             pages.append(filename)
                             del context_dict["piece_html"]
                             del context_dict["social_file"]
-                            del context_dict["piece_context"]
+                            if "piece_context" in context_dict:
+                                del context_dict["piece_context"]
                             del context_dict["site_data_url"]
-                            del context_dict["social_config"]
+                            if "social_config" in context_dict:
+                                del context_dict["social_config"]
                             del context_dict["site_name"]
                             del context_dict["dev_mode"]
                             site_info["posts"].append(context_dict)
 
-    print "Optimizing images..."
+    print("Optimizing images...")
     if not dev:
-        print os.path.join(ROOT_DIR, BUILD_DIR)
+        print(os.path.join(ROOT_DIR, BUILD_DIR))
         call("cd %s;picopt -r *" % os.path.join(ROOT_DIR, BUILD_DIR), shell=True)
 
 
@@ -510,10 +512,11 @@ def build_site(dev=False, clean=False):
     if not os.path.exists(os.path.dirname(site_json_filename)):
         os.makedirs(os.path.dirname(site_json_filename))
 
-    with open(site_json_filename, "w+") as site_json:
-        site_json.write(json.dumps(site_info, cls=DateTimeEncoder, sort_keys=True))
+    with open(site_json_filename, "wb") as site_json:
+        out = u"%s" % json.dumps(site_info, cls=DateTimeEncoder, sort_keys=True)
+        site_json.write(out.encode('utf-8'))
 
-    print "build site"
+    print("build site")
 
 
 def serve_site():
