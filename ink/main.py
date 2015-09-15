@@ -77,6 +77,10 @@ def date_string_to_datetime(date_string):
 
 
 def generate_thumbs_and_resize(dirpath, filename, out_filename):
+    # print("dirpath, filename, out_filename")
+    # print(dirpath)
+    # print(filename)
+    # print(out_filename)
     valid_image = False
     try:
         original_image = Image.open(os.path.join(dirpath, filename))
@@ -97,32 +101,32 @@ def generate_thumbs_and_resize(dirpath, filename, out_filename):
         if "width" in CONFIG["images"]["thumbs"]:
             for width in CONFIG["images"]["thumbs"]["width"]:
                 thumb_out = renamed_out % ("%sw" % width)
-                print(thumb_out)
+                # print(thumb_out)
                 im = original_image.copy()
                 size = width, orig_height * (float(width) / orig_width)
                 im.thumbnail(size, Image.ANTIALIAS)
-                im.save(thumb_out, im.format, quality=100)
+                im.save(thumb_out, im.format, quality=85)
 
         if "height" in CONFIG["images"]["thumbs"]:
             for height in CONFIG["images"]["thumbs"]["height"]:
                 thumb_out = renamed_out % ("%sh" % height)
-                print(thumb_out)
+                # print(thumb_out)
                 im = original_image.copy()
                 size = orig_width * (float(height) / orig_height), height
                 im.thumbnail(size, Image.ANTIALIAS)
-                im.save(thumb_out, im.format, quality=100)
+                im.save(thumb_out, im.format, quality=85)
 
         # resize source to max.
         if "max" in CONFIG["images"]:
             if "width" in CONFIG["images"]["max"]:
                 width = CONFIG["images"]["max"]["width"]
-                print("Resizing to %s" % width)
+                # print("Resizing to %s" % width)
                 if orig_width > width:
                     size = width, orig_height * (float(width) / orig_width)
-                    print(size)
+                    # print(size)
                     im = original_image.copy()
                     im.thumbnail(size, Image.ANTIALIAS)
-                    im.save(out_filename, im.format, quality=100)
+                    im.save(out_filename, im.format, quality=85)
                     valid_operation = True
 
             if "height" in CONFIG["images"]["max"]:
@@ -131,7 +135,7 @@ def generate_thumbs_and_resize(dirpath, filename, out_filename):
                     im = original_image.copy()
                     size = orig_width * (float(height) / orig_height), height
                     im.thumbnail(size, Image.ANTIALIAS)
-                    im.save(out_filename, im.format, quality=100)
+                    im.save(out_filename, im.format, quality=85)
                     valid_operation = True
 
     return valid_operation
@@ -160,7 +164,7 @@ def scaffold_piece(title, url):
         os.makedirs(out_folder)
 
     with open(os.path.join(out_folder, "meta.yml"), "wb") as f:
-        f.write("""url: test
+        f.write("""url: %(url)s
 title: %(title)s
 description: All about %(title)s
 
@@ -168,12 +172,13 @@ published_date: %(date)s
 updated_date: %(date)s
 
 """ % {
+                "url": url,
                 "title": title,
                 "date": now.strftime("%Y-%m-%d %H:%M"),
                 })
 
     with open(os.path.join(out_folder, "social.yml"), "wb") as f:
-        f.write("""url: test
+        f.write("""url: %(url)s
 start_date: %(date)s
 posts:
     - twitter:
@@ -198,6 +203,7 @@ posts:
         time: 07:00
         image: alt.jpg
 """ % {
+                "url": url,
                 "title": title,
                 "date": now.strftime("%Y-%m-%d"),
                 })
@@ -206,11 +212,15 @@ posts:
         f.write("# %s\n\n" % title)
 
 
-def build_dev_site():
+def build_dev_site(*args, **kwargs):
+    print("args")
+    print(args)
+    print("kwargs")
+    print(kwargs)
     return build_site(dev=True)
 
 
-def build_site(dev=False, clean=False):
+def build_site(dev=False, clean=False, single_page=None):
     pages = []
     site_info = {}
     now = datetime.datetime.now()
@@ -226,6 +236,7 @@ def build_site(dev=False, clean=False):
     site_info["static_url"] = static_url
     site_info["pages"] = []
     site_info["posts"] = []
+    private_site_info = site_info
 
     # Build pages
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "pages"), topdown=False):
@@ -259,6 +270,7 @@ def build_site(dev=False, clean=False):
                         print("Writing %s" % filename)
 
                     site_info["pages"].append(context_dict)
+                    private_site_info["pages"].append(context_dict)
                     pages.append(filename)
 
     print("Copying static files",)
@@ -348,9 +360,11 @@ def build_site(dev=False, clean=False):
                         with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")) as f:
                             social_config = load(f)
 
-                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "header.jpg")):
+                    header_image = meta_config.get("header_image", "header.jpg")
+                    no_header = False
+                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, header_image)):
                         print(("Missing header.jpg"))
-                        break
+                        no_header = True
 
                     with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, filename)) as source:
                         raw_source = source.read().strip()
@@ -368,20 +382,23 @@ def build_site(dev=False, clean=False):
 
                         out_filename = os.path.join(BUILD_DIR, url)
 
-                        header_image = meta_config.get("header_image", "header.jpg")
                         social_image = meta_config.get("social_image", header_image)
 
                         resources_url = "%s/resources/%s" % (
                             static_url,
                             meta_config["url"],
                         )
-                        with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image)) as social_file:
+                        thumbs = {}
+                        if no_header:
+                            social_file = None
+                            social_url = ""
+                        else:
+                            social_file = open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image))
                             social_url = "%s/resources/%s/%s" % (
                                 static_url,
                                 meta_config["url"],
                                 social_image,
                             )
-                            thumbs = {}
                             renamed_out = social_url.split(".")
                             renamed_out[-2] = "%s-%%s" % renamed_out[-2]
                             renamed_out = ".".join(renamed_out)
@@ -399,11 +416,79 @@ def build_site(dev=False, clean=False):
                                     print(thumb_out)
                                     thumbs["%sh" % height] = thumb_out.replace(resources_url, "")
 
+                        context_dict = CONFIG["context"].copy()
+                        context_dict.update(meta_config)
+                        context_dict.update({
+                            "dev_mode": dev,
+                            "social_url": social_url,
+                            "social_file": social_file,
+                            "resources_url": resources_url,
+                            "published_date": date_string_to_datetime(meta_config["published_date"]),
+                            "updated_date": date_string_to_datetime(meta_config["updated_date"]),
+                            # "page_name": filename.split(".html")[0],
+                            "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
+                            "site_data_url": site_data_url,
+                        })
+                        c = Context(context_dict)
+                        raw_source = raw_source.replace(
+                            '{%% thumbnail "',
+                            '{%% thumbnail "posts/%s/' % meta_config["url"],
+                        )
+                        raw_source = raw_source.replace(
+                            "{%% thumbnail '",
+                            "{%% thumbnail 'posts/%s/" % meta_config["url"],
+                        )
+                        t = Template(raw_source)
+                        parsed_source = t.render(c)
+
+                        piece_body = markdown(parsed_source)
+                        piece_body = piece_body.replace(u"’", '&rsquo;').replace(u"“", '&ldquo;').replace(u"”", '&rdquo;').replace(u"’", "&rsquo;")
+                        context_dict.update({
+                            "piece_html": piece_body,
+                        })
+                        c = Context(context_dict)
+
+                        t = Template("""{% extends "post.html" %}""")
+                        out = t.render(c).encode("utf-8")
+
+                        if not os.path.exists(os.path.dirname(out_filename)):
+                            os.makedirs(os.path.dirname(out_filename))
+
+                        out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", meta_config["url"])
+                        print(out_folder)
+                        if not os.path.exists(out_folder):
+                            os.makedirs(out_folder)
+
+                        social_outfilename = os.path.join(out_folder, social_image)
+                        valid_operation = generate_thumbs_and_resize(
+                            dirpath,
+                            social_image,
+                            social_outfilename
+                        )
+
+                        if not valid_operation and not no_header:
+                            shutil.copyfile(
+                                os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image),
+                                social_outfilename
+                            )
+
+                        with open(out_filename, "wb") as dest:
+                            dest.write(out)
+                            print("Writing %s" % filename)
+
+                        if dev:
+                            out_filename = "%s-social" % out_filename
+                            t = Template("""{% extends "social.html" %}""")
+                            piece_context = context_dict.copy()
                             context_dict = CONFIG["context"].copy()
                             context_dict.update(meta_config)
                             context_dict.update({
                                 "dev_mode": dev,
+                                "social_config": social_config,
+                                "piece_context": piece_context,
+                                "piece_html": piece_body,
                                 "social_url": social_url,
+                                "thumbs": thumbs,
                                 "social_file": social_file,
                                 "resources_url": resources_url,
                                 "published_date": date_string_to_datetime(meta_config["published_date"]),
@@ -413,107 +498,49 @@ def build_site(dev=False, clean=False):
                                 "site_data_url": site_data_url,
                             })
                             c = Context(context_dict)
-                            raw_source = raw_source.replace(
-                                '{%% thumbnail "',
-                                '{%% thumbnail "posts/%s/' % meta_config["url"],
-                            )
-                            raw_source = raw_source.replace(
-                                "{%% thumbnail '",
-                                "{%% thumbnail 'posts/%s/" % meta_config["url"],
-                            )
-                            t = Template(raw_source)
-                            parsed_source = t.render(c)
-
-                            piece_body = markdown(parsed_source)
-                            piece_body = piece_body.replace(u"’", '&rsquo;').replace(u"“", '&ldquo;').replace(u"”", '&rdquo;').replace(u"’", "&rsquo;")
-                            context_dict.update({
-                                "piece_html": piece_body,
-                            })
-                            c = Context(context_dict)
-
-                            t = Template("""{% extends "post.html" %}""")
                             out = t.render(c).encode("utf-8")
 
                             if not os.path.exists(os.path.dirname(out_filename)):
                                 os.makedirs(os.path.dirname(out_filename))
 
-                            out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", meta_config["url"])
-                            print(out_folder)
-                            if not os.path.exists(out_folder):
-                                os.makedirs(out_folder)
-
-                            social_outfilename = os.path.join(out_folder, social_image)
-                            valid_operation = generate_thumbs_and_resize(
-                                dirpath,
-                                social_image,
-                                social_outfilename
-                            )
-
-                            shutil.copyfile(
-                                os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image),
-                                social_outfilename
-                            )
-
                             with open(out_filename, "wb") as dest:
                                 dest.write(out)
-                                print("Writing %s" % filename)
+                                print("Writing %s-social" % filename)
 
-                            if dev:
-                                out_filename = "%s-social" % out_filename
-                                t = Template("""{% extends "social.html" %}""")
-                                piece_context = context_dict.copy()
-                                context_dict = CONFIG["context"].copy()
-                                context_dict.update(meta_config)
-                                context_dict.update({
-                                    "dev_mode": dev,
-                                    "social_config": social_config,
-                                    "piece_context": piece_context,
-                                    "piece_html": piece_body,
-                                    "social_url": social_url,
-                                    "thumbs": thumbs,
-                                    "social_file": social_file,
-                                    "resources_url": resources_url,
-                                    "published_date": date_string_to_datetime(meta_config["published_date"]),
-                                    "updated_date": date_string_to_datetime(meta_config["updated_date"]),
-                                    # "page_name": filename.split(".html")[0],
-                                    "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
-                                    "site_data_url": site_data_url,
-                                })
-                                c = Context(context_dict)
-                                out = t.render(c).encode("utf-8")
+                        pages.append(filename)
 
-                                if not os.path.exists(os.path.dirname(out_filename)):
-                                    os.makedirs(os.path.dirname(out_filename))
+                        del context_dict["piece_html"]
+                        del context_dict["social_file"]
+                        if "piece_context" in context_dict:
+                            del context_dict["piece_context"]
+                        del context_dict["site_data_url"]
+                        if "social_config" in context_dict:
+                            del context_dict["social_config"]
+                        del context_dict["site_name"]
+                        del context_dict["dev_mode"]
 
-                                with open(out_filename, "wb") as dest:
-                                    dest.write(out)
-                                    print("Writing %s-social" % filename)
-
-                            pages.append(filename)
-                            del context_dict["piece_html"]
-                            del context_dict["social_file"]
-                            if "piece_context" in context_dict:
-                                del context_dict["piece_context"]
-                            del context_dict["site_data_url"]
-                            if "social_config" in context_dict:
-                                del context_dict["social_config"]
-                            del context_dict["site_name"]
-                            del context_dict["dev_mode"]
+                        if "private" not in meta_config or not meta_config["private"]:
                             site_info["posts"].append(context_dict)
+
+                        private_site_info["posts"].append(context_dict)
 
     print("Optimizing images...")
     if not dev:
         print(os.path.join(ROOT_DIR, BUILD_DIR))
         call("cd %s;picopt -r *" % os.path.join(ROOT_DIR, BUILD_DIR), shell=True)
 
-
     site_json_filename = os.path.join(ROOT_DIR, BUILD_DIR, "static", "site.json")
+    private_site_json_filename = os.path.join(ROOT_DIR, BUILD_DIR, "static", "private.json")
 
     if not os.path.exists(os.path.dirname(site_json_filename)):
         os.makedirs(os.path.dirname(site_json_filename))
 
     with open(site_json_filename, "wb") as site_json:
         out = u"%s" % json.dumps(site_info, cls=DateTimeEncoder, sort_keys=True)
+        site_json.write(out.encode('utf-8'))
+
+    with open(private_site_json_filename, "wb") as site_json:
+        out = u"%s" % json.dumps(private_site_info, cls=DateTimeEncoder, sort_keys=True)
         site_json.write(out.encode('utf-8'))
 
     print("build site")
