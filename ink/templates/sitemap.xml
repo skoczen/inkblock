@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    {% for page in info.pages %}
+    <url>
+        <loc>{{page.canonical_url|safe}}</loc>
+        <lastmod>{{page.updated_date|date:"o-m-d"}}T{{page.updated_date|date:"H:i:s"}}-08:00</lastmod>
+    </url>
+    {% endfor %}
+    {% for post in info.posts %}
+    <url>
+        <loc>{{post.canonical_url|safe}}</loc>
+        <lastmod>{{post.updated_date|date:"o-m-d"}}T{{post.updated_date|date:"H:i:s"}}-08:00</lastmod>
+    </url>
+    {% endfor %}
+</urlset>

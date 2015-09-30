@@ -1,7 +1,9 @@
 include README.md AUTHORS LICENSE
 include *.html
 include templates/*.html
+include templates/*.xml
 include ink/templates/*.html
+include ink/templates/*.xml
 include *.md
 include *.py
 

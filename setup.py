@@ -6,7 +6,7 @@ from ink import __name__ as package_name
 DESCRIPTION = "A simple, end-to-end publishing platform."
 ROOT_DIR = os.path.dirname(__file__)
 SOURCE_DIR = os.path.join(ROOT_DIR)
-VERSION = "0.4"
+VERSION = "0.5.2"
 
 reqs = []
 with open("requirements.txt", "r+") as f:

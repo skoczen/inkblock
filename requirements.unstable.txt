@@ -1,3 +1,4 @@
+colorama
 click
 django
 livereload
@@ -5,4 +6,5 @@ lesscpy
 mistune
 pillow
 pyyaml
+requests
 sorl-thumbnail
