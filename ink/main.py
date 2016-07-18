@@ -14,6 +14,7 @@ from PIL import Image
 
 from django.conf import settings
 from django.template import Template, Context
+from django.utils.text import slugify
 from livereload import Server
 from subprocess import call
 from yaml import load, dump
@@ -176,6 +177,8 @@ def is_newer(dirpath, filename):
         cache = modification_date(os.path.join(cache_dir_path, filename))
         actual = modification_date(os.path.join(ROOT_DIR, dirpath, filename))
         return actual > cache
+    except OSError:
+        return True
     except:
         import traceback
         traceback.print_exc()
@@ -219,6 +222,9 @@ def post_in_future(social_post, post):
 def publish_facebook(social_post, post):
     # print "Facebook %s" % social_post
     url = "/updates/create.json"
+    # print(social_post)
+    # print(post["meta"])
+    # print(post["site"])
 
     # if post["meta"]["url"] not in social_post["content"]:
     #     text_with_url = "%s %s" % (
@@ -226,6 +232,7 @@ def publish_facebook(social_post, post):
 
     #     )
     # else:
+
     text_with_url = social_post["content"]
     data = []
     for f in facebook_profiles:
@@ -313,9 +320,16 @@ def scaffold_piece(title, url):
         os.makedirs(out_folder)
 
     with open(os.path.join(out_folder, "meta.yml"), "wb") as f:
-        f.write("""url: %(url)s
+        f.write(u"""url: %(url)s
 title: %(title)s
-description: All about %(title)s
+description: %(title)s
+# post_template: letter.html
+# private: true
+# date: 2015-10-11
+# letter_subject: The Power of Really, Really Crazy Hair
+# page_name: letter
+# location: Medellin, Antioquia, Colombia
+
 
 published_date: %(date)s
 updated_date: %(date)s
@@ -323,7 +337,7 @@ updated_date: %(date)s
 """ % {
                 "url": url,
                 "title": title,
-                "date": now.strftime("%Y-%m-%d %H:%M"),
+                "date": "%s" % now.strftime("%Y-%m-%d %H:%M"),
                 })
 
     with open(os.path.join(out_folder, "social.yml"), "wb") as f:
@@ -332,24 +346,24 @@ start_date: %(date)s
 posts:
     - twitter:
         publication_plus_days: 0
-        content: First tweet
-        time: 07:00
+        content: "First tweet"
+        time: "07:00"
         image: header.jpg
     - twitter:
         publication_plus_days: 3
-        content: Second tweet body
-        time: 07:00
+        content: "Second tweet body"
+        time: "07:00"
         image: alt.jpg
 
     - facebook:
         publication_plus_days: 0
-        content: I'm posting some cool stuff.
-        time: 07:00
+        content: "I'm posting some cool stuff."
+        time: "07:00"
         image: header.jpg
     - facebook:
         publication_plus_days: 3
-        content: I found something I never expected here in mexico
-        time: 07:00
+        content: "I found something I never expected here in mexico"
+        time: "07:00"
         image: alt.jpg
 """ % {
                 "url": url,
@@ -369,7 +383,137 @@ def build_dev_site(*args, **kwargs):
     return build_site(dev_mode=True)
 
 
+def build_site_context(ignore_cache=True):
+    print("building context..")
+    global site_info
+    global private_site_info
+    global pages
+    site_info = {
+        "pages": [],
+        "posts": [],
+    }
+    private_site_info = {
+        "pages": [],
+        "posts": [],
+    }
+    pages = []
+    now = datetime.datetime.now()
+    print os.path.join(ROOT_DIR, "pages")
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "pages"), topdown=False):
+        for filename in filenames:
+            print filename
+            if filename.endswith(".html"):
+                if ignore_cache or is_newer(dirpath, filename):
+                    with open(os.path.join(dirpath, filename)) as source:
+                        context_dict = CONFIG["context"].copy()
+                        page_name = filename.split(".html")[0]
+                        if page_name == "index":
+                            page_name = ""
+                        context_dict.update({
+                            "dev_mode": dev,
+                            "page_name": filename.split(".html")[0],
+                            "url": filename.split(".html")[0],
+                            "canonical_url": "%s/%s" % (static_url, page_name),
+                            "updated_date": now,
+                            "site_data_url": site_data_url,
+                        })
+                        site_info["pages"].append(context_dict)
+                        private_site_info["pages"].append(context_dict)
+                        pages.append(filename)
+
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "posts"), topdown=False):
+        for filename in filenames:
+            if "piece.md" in filename:
+                # Found a folder.
+                # Make sure it's got the stuffs.
+
+                if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")):
+                    print("  ! Missing meta.yml")
+                    break
+                else:
+                    with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")) as f:
+                        meta_config = load(f)
+                if "published" in meta_config and meta_config["published"] is not True:
+                    print("Not published")
+                else:
+                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")):
+                        print("  ! Missing social.yml")
+                        break
+                    else:
+                        with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")) as f:
+                            social_config = load(f)
+
+                    header_image = meta_config.get("header_image", "header.jpg")
+
+                    with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, filename)) as source:
+                        print(" - %s" % meta_config["title"])
+                        raw_source = source.read().strip()
+                        first_line = raw_source.split("\n")[0]
+                        if (first_line.replace("#", "").strip() == meta_config["title"]):
+                            raw_source = "\n".join(raw_source.split("\n")[1:])
+
+                        # piece_body = markdown(raw_source)
+                        if "url" in meta_config:
+                            url = meta_config["url"]
+                        else:
+                            url = dirpath.split("/")[-1]
+                            if "index.html" not in filename:
+                                url = url.replace(".html", "")
+
+                        out_filename = os.path.join(BUILD_DIR, url)
+
+                        social_image = meta_config.get("social_image", header_image)
+
+                        resources_url = "%s/resources/%s" % (
+                            static_url,
+                            # meta_config["url"],
+                            dirpath.replace("%s/posts/" % ROOT_DIR, "")
+                        )
+                        thumbs = {}
+
+                        social_url = "%s/%s" % (resources_url, social_image)
+
+                        context_dict = CONFIG["context"].copy()
+                        context_dict.update(meta_config)
+                        context_dict.update({
+                            "dev_mode": dev,
+                            "social_url": social_url,
+                            # "social_file": social_file,
+                            "thumbs": thumbs,
+                            "resources_url": resources_url,
+                            "published_date": date_string_to_datetime(meta_config["published_date"]),
+                            "updated_date": date_string_to_datetime(meta_config["updated_date"]),
+                            # "page_name": filename.split(".html")[0],
+                            "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
+                            "site_data_url": site_data_url,
+                        })
+
+                        pages.append(filename)
+
+                        if "piece_context" in context_dict:
+                            del context_dict["piece_context"]
+                        del context_dict["site_data_url"]
+                        if "social_config" in context_dict:
+                            del context_dict["social_config"]
+                        del context_dict["site_name"]
+                        del context_dict["dev_mode"]
+
+                # print (meta_config)
+                if "private" not in meta_config or meta_config["private"] is False:
+                    # print("Not private")
+                    site_info["posts"].append(context_dict)
+
+                private_site_info["posts"].append(context_dict)
+
+
+    # print ("site_info")
+    # print (site_info)
+
 def build_pages(ignore_cache=False):
+    global site_info
+    print "build_pages"
+    # print site_info
+    build_site_context(ignore_cache=ignore_cache)
     sys.stdout.write("Building pages...")
     now = datetime.datetime.now()
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "pages"), topdown=False):
@@ -390,6 +534,8 @@ def build_pages(ignore_cache=False):
                             "canonical_url": "%s/%s" % (static_url, page_name),
                             "updated_date": now,
                             "site_data_url": site_data_url,
+                            "site_info": site_info,
+                            "private_site_info": private_site_info,
                         })
 
                         c = Context(context_dict)
@@ -404,11 +550,11 @@ def build_pages(ignore_cache=False):
 
                         with open(out_filename, "wb") as dest:
                             dest.write(out)
-                            # print("Writing %s" % filename)
+                            print("Writing %s" % filename)
 
-                        site_info["pages"].append(context_dict)
-                        private_site_info["pages"].append(context_dict)
-                        pages.append(filename)
+                        # site_info["pages"].append(context_dict)
+                        # private_site_info["pages"].append(context_dict)
+                        # pages.append(filename)
             sys.stdout.write(".")
     sys.stdout.write(" done. \n")
 
@@ -433,11 +579,14 @@ def copy_static_files(ignore_cache=False):
 
                     # If we're optimizing images..
                     optimization_enabled = False
-                    if "images" in CONFIG and "thumbs" in CONFIG["images"]:
-                        for size in CONFIG["images"]["thumbs"]:
-                            if "-thumb-%s" % size in filename:
-                                optimization_enabled = True
-                                break
+                    if "images" in CONFIG and "max" in CONFIG["images"]:
+                        optimization_enabled = True
+                    if not optimization_enabled:
+                        if "images" in CONFIG and "thumbs" in CONFIG["images"]:
+                            for size in CONFIG["images"]["thumbs"]:
+                                if "-thumb-%s" % size in filename:
+                                    optimization_enabled = True
+                                    break
 
                     valid_operation = False
                     valid_image = False
@@ -487,109 +636,110 @@ def copy_extra_files(ignore_cache=False):
 
 def compile_less(ignore_cache=False):
     print("Compile LESS")
-    call(["lesscpy", os.path.join(ROOT_DIR, BUILD_DIR, "less"), "-X", "-o", os.path.join(ROOT_DIR, BUILD_DIR, "css")])
+    call(["lesscpy", os.path.join(ROOT_DIR, BUILD_DIR, "less"), "-X", "-f", "-o", os.path.join(ROOT_DIR, BUILD_DIR, "css")])
 
 
 def build_posts(ignore_cache=False):
+    build_site_context(ignore_cache=ignore_cache)
     # Build posts
     sys.stdout.write("Building posts...\n")
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, "posts"), topdown=False):
         for filename in filenames:
             if "piece.md" in filename:
                 # Found a folder.
-                if ignore_cache or is_newer(dirpath, filename) or is_newer(dirpath, "meta.yml"):
-                    cache_file(dirpath, filename)
-                    cache_file(dirpath, "meta.yml")
-                    # Make sure it's got the stuffs.
+                # Make sure it's got the stuffs.
 
-                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")):
-                        print("  ! Missing meta.yml")
+                if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")):
+                    print("  ! Missing meta.yml")
+                    break
+                else:
+                    with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")) as f:
+                        meta_config = load(f)
+                if "published" in meta_config and meta_config["published"] is not True:
+                    print("Not published")
+                else:
+                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")):
+                        print("  ! Missing social.yml")
                         break
                     else:
-                        with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "meta.yml")) as f:
-                            meta_config = load(f)
-                    if "published" in meta_config and meta_config["published"] is not True:
-                        print("Not published")
-                    else:
-                        if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")):
-                            print("  ! Missing social.yml")
-                            break
+                        with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")) as f:
+                            social_config = load(f)
+
+                    header_image = meta_config.get("header_image", "header.jpg")
+                    no_header = False
+                    if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, header_image)):
+                        print("  ! Missing header.jpg")
+                        no_header = True
+
+                    with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, filename)) as source:
+                        print(" - %s" % meta_config["title"])
+                        raw_source = source.read().strip()
+                        first_line = raw_source.split("\n")[0]
+                        if (first_line.replace("#", "").strip() == meta_config["title"]):
+                            raw_source = "\n".join(raw_source.split("\n")[1:])
+
+                        # piece_body = markdown(raw_source)
+                        if "url" in meta_config:
+                            url = meta_config["url"]
                         else:
-                            with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, "social.yml")) as f:
-                                social_config = load(f)
+                            url = dirpath.split("/")[-1]
+                            if "index.html" not in filename:
+                                url = url.replace(".html", "")
 
-                        header_image = meta_config.get("header_image", "header.jpg")
-                        no_header = False
-                        if not os.path.exists(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, header_image)):
-                            print("  ! Missing header.jpg")
-                            no_header = True
+                        out_filename = os.path.join(BUILD_DIR, url)
 
-                        with open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, filename)) as source:
-                            print(" - %s" % meta_config["title"])
-                            raw_source = source.read().strip()
-                            first_line = raw_source.split("\n")[0]
-                            if (first_line.replace("#", "").strip() == meta_config["title"]):
-                                raw_source = "\n".join(raw_source.split("\n")[1:])
+                        social_image = meta_config.get("social_image", header_image)
 
-                            # piece_body = markdown(raw_source)
-                            if "url" in meta_config:
-                                url = meta_config["url"]
-                            else:
-                                url = dirpath.split("/")[-1]
-                                if "index.html" not in filename:
-                                    url = url.replace(".html", "")
-
-                            out_filename = os.path.join(BUILD_DIR, url)
-
-                            social_image = meta_config.get("social_image", header_image)
-
-                            resources_url = "%s/resources/%s" % (
-                                static_url,
-                                # meta_config["url"],
-                                dirpath.replace("%s/" % ROOT_DIR, "")
+                        resources_url = "%s/resources/%s" % (
+                            static_url,
+                            # meta_config["url"],
+                            dirpath.replace("%s/posts/" % ROOT_DIR, "")
+                        )
+                        thumbs = {}
+                        if no_header:
+                            social_file = None
+                            social_url = ""
+                        else:
+                            social_file = open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image))
+                            social_url = "%s/%s" % (
+                                resources_url,
+                                social_image,
                             )
-                            thumbs = {}
-                            if no_header:
-                                social_file = None
-                                social_url = ""
-                            else:
-                                social_file = open(os.path.join(ROOT_DIR, BUILD_DIR, dirpath, social_image))
-                                social_url = "%s/resources/%s/%s" % (
-                                    static_url,
-                                    meta_config["url"],
-                                    social_image,
-                                )
-                                renamed_out = social_url.split(".")
-                                renamed_out[-2] = "%s-%%s" % renamed_out[-2]
-                                renamed_out = ".".join(renamed_out)
+                            renamed_out = social_url.split(".")
+                            renamed_out[-2] = "%s-%%s" % renamed_out[-2]
+                            renamed_out = ".".join(renamed_out)
 
-                                # make thumbs
-                                if "width" in CONFIG["images"]["thumbs"]:
-                                    for width in CONFIG["images"]["thumbs"]["width"]:
-                                        thumb_out = renamed_out % ("%sw" % width)
-                                        # print(thumb_out)
-                                        thumbs["%sw" % width] = thumb_out.replace(resources_url, "")
+                            # make thumbs
+                            if "width" in CONFIG["images"]["thumbs"]:
+                                for width in CONFIG["images"]["thumbs"]["width"]:
+                                    thumb_out = renamed_out % ("%sw" % width)
+                                    # print(thumb_out)
+                                    thumbs["%sw" % width] = thumb_out.replace(resources_url, "")
 
-                                if "height" in CONFIG["images"]["thumbs"]:
-                                    for height in CONFIG["images"]["thumbs"]["height"]:
-                                        thumb_out = renamed_out % ("%sh" % height)
-                                        # print(thumb_out)
-                                        thumbs["%sh" % height] = thumb_out.replace(resources_url, "")
+                            if "height" in CONFIG["images"]["thumbs"]:
+                                for height in CONFIG["images"]["thumbs"]["height"]:
+                                    thumb_out = renamed_out % ("%sh" % height)
+                                    # print(thumb_out)
+                                    thumbs["%sh" % height] = thumb_out.replace(resources_url, "")
 
-                            context_dict = CONFIG["context"].copy()
-                            context_dict.update(meta_config)
-                            context_dict.update({
-                                "dev_mode": dev,
-                                "social_url": social_url,
-                                "social_file": social_file,
-                                "thumbs": thumbs,
-                                "resources_url": resources_url,
-                                "published_date": date_string_to_datetime(meta_config["published_date"]),
-                                "updated_date": date_string_to_datetime(meta_config["updated_date"]),
-                                # "page_name": filename.split(".html")[0],
-                                "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
-                                "site_data_url": site_data_url,
-                            })
+                        context_dict = CONFIG["context"].copy()
+                        context_dict.update(meta_config)
+                        context_dict.update({
+                            "dev_mode": dev,
+                            "social_url": social_url,
+                            "social_file": social_file,
+                            "thumbs": thumbs,
+                            "resources_url": resources_url,
+                            "published_date": date_string_to_datetime(meta_config["published_date"]),
+                            "updated_date": date_string_to_datetime(meta_config["updated_date"]),
+                            # "page_name": filename.split(".html")[0],
+                            "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
+                            "site_data_url": site_data_url,
+                            "site_info": site_info,
+                        })
+                        if ignore_cache or is_newer(dirpath, filename) or is_newer(dirpath, "meta.yml"):
+                            cache_file(dirpath, filename)
+                            cache_file(dirpath, "meta.yml")
                             c = Context(context_dict)
                             raw_source = raw_source.replace(
                                 '{%% thumbnail "',
@@ -603,19 +753,21 @@ def build_posts(ignore_cache=False):
                             parsed_source = t.render(c)
 
                             piece_body = markdown(parsed_source)
-                            piece_body = piece_body.replace(u"’", '&rsquo;').replace(u"“", '&ldquo;').replace(u"”", '&rdquo;').replace(u"’", "&rsquo;")
+                            piece_body = piece_body.replace(u"’", '&rsquo;').replace(u"“", '&ldquo;').replace(u"”", '&rdquo;').replace(u"’", "&rsquo;");
+
                             context_dict.update({
                                 "piece_html": piece_body,
                             })
                             c = Context(context_dict)
 
-                            t = Template("""{% extends "post.html" %}""")
+                            t = Template("""{% extends '""" + context_dict["post_template"] + """' %}""")
                             out = t.render(c).encode("utf-8")
 
                             if not os.path.exists(os.path.dirname(out_filename)):
                                 os.makedirs(os.path.dirname(out_filename))
 
-                            out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", meta_config["url"])
+                            # out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", meta_config["url"])
+                            out_folder = os.path.join(ROOT_DIR, BUILD_DIR, "resources", dirpath.replace("%s/posts/" % ROOT_DIR, ""))
                             # print(out_folder)
                             if not os.path.exists(out_folder):
                                 os.makedirs(out_folder)
@@ -669,45 +821,33 @@ def build_posts(ignore_cache=False):
                             #         dest.write(out)
                             #         print("Writing %s-social" % filename)
 
-                            pages.append(filename)
+                            # pages.append(filename)
 
-                            del context_dict["piece_html"]
-                            del context_dict["social_file"]
-                            if "piece_context" in context_dict:
-                                del context_dict["piece_context"]
-                            del context_dict["site_data_url"]
-                            if "social_config" in context_dict:
-                                del context_dict["social_config"]
-                            del context_dict["site_name"]
-                            del context_dict["dev_mode"]
-                else:
-                    context_dict = CONFIG["context"].copy()
-                    context_dict.update(meta_config)
-                    context_dict.update({
-                        "dev_mode": dev,
-                        "social_url": social_url,
-                        "social_file": social_file,
-                        "thumbs": thumbs,
-                        "resources_url": resources_url,
-                        "published_date": date_string_to_datetime(meta_config["published_date"]),
-                        "updated_date": date_string_to_datetime(meta_config["updated_date"]),
-                        # "page_name": filename.split(".html")[0],
-                        "canonical_url": "%s/%s" % (static_url, meta_config["url"]),
-                        "site_data_url": site_data_url,
-                    })
+                            # del context_dict["piece_html"]
+                            # del context_dict["social_file"]
+                            # if "piece_context" in context_dict:
+                            #     del context_dict["piece_context"]
+                            # del context_dict["site_data_url"]
+                            # if "social_config" in context_dict:
+                            #     del context_dict["social_config"]
+                            # del context_dict["site_name"]
+                            # del context_dict["dev_mode"]
+
+                if social_file:
+                    social_file.close()
 
                 # print (meta_config)
-                if "private" not in meta_config or not meta_config["private"]:
-                    # print("Not private")
-                    site_info["posts"].append(context_dict)
+                # if "private" not in meta_config or meta_config["private"] is False:
+                #     # print("Not private")
+                #     site_info["posts"].append(context_dict)
 
-                private_site_info["posts"].append(context_dict)
+                # private_site_info["posts"].append(context_dict)
 
 
 def optimize_images(ignore_cache=False):
     print("Optimizing images...")
     print(os.path.join(ROOT_DIR, BUILD_DIR))
-    call("cd %s;picopt -r *" % os.path.join(ROOT_DIR, BUILD_DIR), shell=True)
+    call("cd %s;picopt -rG *" % os.path.join(ROOT_DIR, BUILD_DIR), shell=True)
 
 
 def create_sitemap_xml(ignore_cache=False):
@@ -715,7 +855,7 @@ def create_sitemap_xml(ignore_cache=False):
     print("Sitemap.xml")
     with open(os.path.join(ROOT_DIR, BUILD_DIR, "sitemap.xml"), "wb") as sitemap:
         context_dict = {
-            "info": site_info,
+            "info": private_site_info,
         }
         c = Context(context_dict)
         t = Template("""{% extends "sitemap.xml" %}""")
@@ -775,11 +915,11 @@ def build_site(dev_mode=False, clean=False, ignore_cache=None):
     site_data_url = "/static/site.json"
 
     site_info["static_url"] = static_url
-    site_info["pages"] = []
-    site_info["posts"] = []
+    # site_info["pages"] = []
+    # site_info["posts"] = []
     private_site_info["static_url"] = static_url
-    private_site_info["pages"] = []
-    private_site_info["posts"] = []
+    # private_site_info["pages"] = []
+    # private_site_info["posts"] = []
 
     if ignore_cache is None:
         ignore_cache = not dev_mode
@@ -846,6 +986,7 @@ def do_purge():
     }
 
     r = requests.get(url, params=params, headers=headers)
+
     if not r.status_code == 200:
         print("Error at Cloudflare:")
         print(r.json())
@@ -859,7 +1000,8 @@ def do_purge():
             "purge_everything": True
         }
 
-        r = requests.delete(url, data=data, headers=headers)
+        r = requests.delete(url, data=json.dumps(data), headers=headers)
+
         if not r.status_code == 200:
             print(r.status_code)
             print(r.json())
@@ -882,7 +1024,8 @@ def write():
     title = click.prompt("What's the title?")
 
     # Make sure that title doesn't exist.
-    url = click.prompt("What's the URL?", default=title.replace(" ", "-").lower())
+    url = slugify(title)
+    url = click.prompt("What's the URL?", default=url)
 
     # Make sure that title doesn't exist.
     click.echo("Got it. Creating %s..." % url)
@@ -939,7 +1082,7 @@ def promote():
             click.secho(u"✓  %s: %s" % (p["formatted_service"], p["formatted_username"]), fg="green")
 
     echo("Checking publication status...")
-    site_json_filename = os.path.join(ROOT_DIR, BUILD_DIR, "static", "site.json")
+    site_json_filename = os.path.join(ROOT_DIR, BUILD_DIR, "static", "private.json")
     with open(site_json_filename, "r") as site_json:
         site = load(site_json)
 
@@ -959,6 +1102,7 @@ def promote():
                         meta = load(f)
 
                     if "url" in meta:
+                        site_json_entry = None
                         for sp in site["posts"]:
                             if meta["url"] == sp["url"]:
                                 site_json_entry = sp
@@ -1060,6 +1204,10 @@ def promote():
                     for p in facebook_posts:
                         if post_in_future(p, post):
                             publish_facebook(p, post)
+                            if (len(p["content"]) > 40):
+                                truncated_content = "%s..." % p["content"][:40]
+                            else:
+                                truncated_content = p["content"]
                             click.secho(u"   ✓ Twitter %s:  \"%s\"" % (
                                 publish_datetime(p, post).strftime("%c"),
                                 truncated_content,
@@ -1067,6 +1215,10 @@ def promote():
                     for p in twitter_posts:
                         if post_in_future(p, post):
                             publish_twitter(p, post)
+                            if (len(p["content"]) > 40):
+                                truncated_content = "%s..." % p["content"][:40]
+                            else:
+                                truncated_content = p["content"]
                             click.secho(u"   ✓ Facebook %s:  \"%s\"" % (
                                 publish_datetime(p, post).strftime("%c"),
                                 truncated_content,
