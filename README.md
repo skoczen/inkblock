@@ -1,87 +1,60 @@
-Ink is a simpler way to create and publish writing on the web.
+Inkblock is a simpler way to create and publish writing on the web.
 
 
+It's true, there are a million static site generators out there.  The best five or six are better at their jobs than Inkblock is, to be honest.  But not one of them is slightly involved in the most important part of publishing online - *getting it in front of human beings*.
 
-It's true, there are a million static site generators out there.  The best five or six are better at their jobs than Ink is, to be honest.  But not one of them is slightly involved in the most important part of publishing online - *getting it in front of human beings*.
-
-Ink handles your pages, blog posts, and scheduled social posts and just makes everything work. Simply.
+Inkblock handles your pages, blog posts, and scheduled social posts and just makes everything work. Simply.
 
 **Notes::** I'm using this in production, but it's still pretty tuned to my needs, and needs some abstraction.  Also, the social stuff isn't in yet.  If you need something today, use Cactus.
 
 
 # Installation
 
-1. `pip install inky`  (note not "ink" - tragically, it was taken by a utility that appears to be abandoned.)
+1. `pip install inkblock`
 2. `npm install -g firebase-tools`  Optional, to use the [firebase deploy]()
+3. `npm install -g critical html-minifier` Optional, will optimize html, inline CSS and such for fastest loads.
 3. `pip install picopt; brew install optipng jpeg gifsicle mozjpeg; ln -s /usr/local/Cellar/mozjpeg/2.1/bin/jpegtran /usr/local/bin/mozjpeg` Optional, to use image optimization (Mac OS X shown.)
 
 
 Me: npm install -g blaze_compiler
 
 
+# What it does
+
+Builds a static site using django templates, smart css/js compression and combining, and uploads that site to firebase or any rsync-capable host.
+
+Integrates with cloudflare for caching, and buffer for social media scheduling.
+
+Your workflow is as follows:
+
+```bash
+ink write # write the thing
+ink serve # test, look
+ink publish # put it online
+ink promote # put it on the social medias.
+```
+
+
 # Usage
 
 
 ```bash
-$ ink new piece
-Title: The Mexican Secret of Happiness
-URL: the-mexican-secret-of-happiness [Y/n]
+$ Usage: ink [OPTIONS] COMMAND [ARGS]...
 
-> Piece #24 created.  Opening editor.
+  Ink.  Publication made simple.
 
-$ 
+Options:
+  --help  Show this message and exit.
 
-# Editing happens
+Commands:
+  build
+  list      List all posts
+  promote   Schedule all the social media posts.
+  publish   Publish the site
+  purge
+  scaffold  Start a new site.
+  serve     Serve the site for local testing and editing.
+  write     Start a new piece
 
-$ ink publish
-
-Publishing Ink and Feet.
-Pages:
-  - /home... published
-  - /letter... published
-Posts:
-  - /the-mexican-secret-to-happiness... published
 ```
 
-
-This is the first install of an Ink site.
-
-
-# Footprints: A complimentary server
-
-http://click.pocoo.org/5/
-
-
-Specs:
-ink serve
-ink build
-ink new
-ink publish
-# ink list
-# ink help
-# ink (alias for ink help)
-
-
-pages are built with: 
-    name stripped of html, or "url" override.
-    put up as text/html, no extension, pretty URLs.
-
-
-
-
-User data
-
-/users/:uid
-    /profile
-    /piece_url
-        /hearted: true
-        /read: true
-
-/events
-    { 
-        uid
-        timestamp
-        url
-        action
-        type
-    }

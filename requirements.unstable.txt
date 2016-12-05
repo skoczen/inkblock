@@ -1,6 +1,8 @@
 colorama
 click
 django
+django-static
+jsmin
 livereload
 lesscpy
 mistune

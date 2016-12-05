@@ -4,8 +4,8 @@ click==5.1
 colorama==0.3.3
 coverage==3.7.1
 Django==1.8.4
+django-static==1.5.6
 django-appconf==1.0.1
-django-compressor==1.5
 flake8==2.4.1
 lesscpy==0.10.2
 livereload==2.4.0
