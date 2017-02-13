@@ -5,18 +5,15 @@ It's true, there are a million static site generators out there.  The best five 
 
 Inkblock handles your pages, blog posts, and scheduled social posts and just makes everything work. Simply.
 
-**Notes::** I'm using this in production, but it's still pretty tuned to my needs, and needs some abstraction.  Also, the social stuff isn't in yet.  If you need something today, use Cactus.
+**Notes:** I'm using this in production, but it's still fairly tuned to my needs, and needs some abstraction.  If you need something bulletproof today, use Cactus.
 
 
 # Installation
 
 1. `pip install inkblock`
-2. `npm install -g firebase-tools`  Optional, to use the [firebase deploy]()
 3. `npm install -g critical html-minifier` Optional, will optimize html, inline CSS and such for fastest loads.
 3. `pip install picopt; brew install optipng jpeg gifsicle mozjpeg; ln -s /usr/local/Cellar/mozjpeg/2.1/bin/jpegtran /usr/local/bin/mozjpeg` Optional, to use image optimization (Mac OS X shown.)
 
-
-Me: npm install -g blaze_compiler
 
 
 # What it does

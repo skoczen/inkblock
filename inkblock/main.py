@@ -1545,7 +1545,7 @@ def promote():
                                 truncated_content = "%s..." % p["content"][:40]
                             else:
                                 truncated_content = p["content"]
-                            click.secho(u"   ✓ Twitter %s:  \"%s\"" % (
+                            click.secho(u"   ✓ Facebook %s:  \"%s\"" % (
                                 publish_datetime(p, post).strftime("%c"),
                                 truncated_content,
                             ), fg="green")
@@ -1556,7 +1556,7 @@ def promote():
                                 truncated_content = "%s..." % p["content"][:40]
                             else:
                                 truncated_content = p["content"]
-                            click.secho(u"   ✓ Facebook %s:  \"%s\"" % (
+                            click.secho(u"   ✓ Twitter %s:  \"%s\"" % (
                                 publish_datetime(p, post).strftime("%c"),
                                 truncated_content,
                             ), fg="green")
