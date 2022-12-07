@@ -1,5 +1,5 @@
 backports.ssl-match-hostname==3.4.0.2
-certifi==2015.4.28
+certifi==2022.12.7
 click==5.1
 colorama==0.3.3
 coverage==3.7.1
